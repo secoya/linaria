@@ -14,8 +14,22 @@ module.exports = function loader(content: string, inputSourceMap: ?Object) {
     sourceMap,
     cacheDirectory = '.linaria-cache',
     preprocessor,
+    resolveModuleName: resolveModuleNamePathOrFunction,
     ...rest
   } = loaderUtils.getOptions(this) || {};
+
+  let resolveModuleName = null;
+  if (typeof resolveModuleNamePathOrFunction === 'string') {
+    // eslint-disable-next-line no-eval
+    resolveModuleName = eval('require')(resolveModuleNamePathOrFunction);
+    if (typeof resolveModuleName !== 'function') {
+      throw new Error(
+        'resolveModuleName must either be a function or the path to a commonjs module exporting a function'
+      );
+    }
+  } else if (typeof resolveModuleNamePathOrFunction === 'function') {
+    resolveModuleName = resolveModuleNamePathOrFunction;
+  }
 
   const outputFilename = path.join(
     path.isAbsolute(cacheDirectory)
@@ -46,6 +60,11 @@ module.exports = function loader(content: string, inputSourceMap: ?Object) {
       : resolveOptions
   );
 
+  const resolveModuleNameSync = (containingFilePath, moduleName) =>
+    typeof resolveModuleName === 'function'
+      ? resolveModuleName(moduleName, containingFilePath)
+      : resolveSync(path.dirname(containingFilePath), moduleName);
+
   let result;
 
   const originalResolveFilename = Module._resolveFilename;
@@ -53,7 +72,7 @@ module.exports = function loader(content: string, inputSourceMap: ?Object) {
   try {
     // Use webpack's resolution when evaluating modules
     Module._resolveFilename = (id, { filename }) =>
-      resolveSync(path.dirname(filename), id);
+      resolveModuleNameSync(filename, id);
 
     result = transform(content, {
       filename: this.resourcePath,
@@ -79,7 +98,7 @@ module.exports = function loader(content: string, inputSourceMap: ?Object) {
     if (result.dependencies && result.dependencies.length) {
       result.dependencies.forEach(dep => {
         try {
-          const f = resolveSync(path.dirname(this.resourcePath), dep);
+          const f = resolveModuleNameSync(this.resourcePath, dep);
 
           this.addDependency(f);
         } catch (e) {

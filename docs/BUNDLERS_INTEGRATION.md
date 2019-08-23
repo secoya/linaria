@@ -203,6 +203,14 @@ The loader accepts the following options:
 
   Note that if you use a custom syntax, you also need to specify the `syntax` in your `stylelint.config.js` to properly lint the CSS.
 
+- `resolveModuleName: (moduleName: string, containingFilePath: string) => string) | string`:
+
+  You can override the default way modules are resolved when evaluation is performed.
+  When invoked the method will be given the module name (ie. `polished` or `./myDirectory/myFile`) as the first parameter,
+  and the absolute file path of the file that is trying to import that module as the second argument. The return value
+  should be the file path of the resolved module. The function should throw an error if the module cannot be found.
+  The given value can be either the function itself, or the path to a commonjs module exporting said function.
+
 In addition to the above options, the loader also accepts all the options supported in the [configuration file](/docs/CONFIGURATION.md).
 
 You can pass options to the loader like so:
